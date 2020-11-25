@@ -1,0 +1,5 @@
+entitlements_deductions %>% filter(str_detect(type, "pay")) %>% filter(! str_detect(type, "lieu|previous|delayed implement|payment under")) %>% filter(date_start > "2020-07-01") %>% arrange(date_start) %>% ggplot(aes(x = date_start, y = amount)) + geom_point() + geom_line()
+
+entitlements_deductions %>% filter(! str_detect(type, "pay")) %>% filter(date_start > "2020-07-01") %>% left_join(stubs %>% select(filename, stub_date = date)) %>% arrange(date_start, stub_date) %>% select(filename, stub_date, everything(), -rate, -is_pay:-dates) %>% mutate(hrly = round(amount / hours, 2)) %>% View()
+
+entitlements_deductions %>% filter(str_detect(type, "pay")) %>% filter(! str_detect(type, "lieu|previous|delayed implement|payment under")) %>% filter(date_start > "2020-07-01") %>% left_join(stubs %>% select(filename, stub_date = date)) %>% arrange(date_start, stub_date) %>% select(filename, stub_date, everything(), -rate, -is_pay:-dates) %>% mutate(hrly = round(amount / hours, 2)) %>% View()
