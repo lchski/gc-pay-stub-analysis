@@ -68,12 +68,13 @@ extract_summary_details <- function(stub) {
       ymd(),
     paycheque_number = extract_line_from_current_stub_section("stub-meta", "^Paycheque Number: ") %>%
       as.integer,
-    pay = tibble(
-      gross = extract_line_from_current_stub_section("summary", "^Gross"),
-      taxable_gross = extract_line_from_current_stub_section("summary", "^Taxable Gross"),
-      total_taxes_and_deductions = extract_line_from_current_stub_section("summary", "^Total Taxes and Deductions"),
-      net = extract_line_from_current_stub_section("summary", "^Net")
-    ) %>% mutate_all(extract_amounts_from_line),
+    pay = tribble(
+      ~line, ~line_details,
+      "gross", extract_line_from_current_stub_section("summary", "^Gross"),
+      "taxable_gross", extract_line_from_current_stub_section("summary", "^Taxable Gross"),
+      "total_taxes_and_deductions", extract_line_from_current_stub_section("summary", "^Total Taxes and Deductions"),
+      "net", extract_line_from_current_stub_section("summary", "^Net")
+    ) %>% mutate(line_details = map(line_details, extract_amounts_from_line)) %>% unnest_wider(line_details),
     deductions_statutory = tibble(
       tax_federal = extract_line_from_current_stub_section("deductions-statutory", "^Federal Tax"),
       tax_provincial = extract_line_from_current_stub_section("deductions-statutory", "^Provincial Tax"),
@@ -98,7 +99,31 @@ extract_summary_details <- function(stub) {
   )
 }
 
+zz_extract_line_from_current_stub_section <- function(section, line_identifier, stub_to_check = read_lines_from_stub_pdf("data/source/stubs/2018-06-13.pdf")) {
+  stub_to_check %>%
+    extract_line_from_section(section, line_identifier)
+}
+
+tribble(
+  ~line, ~details,
+  "gross", zz_extract_line_from_current_stub_section("summary", "^Gross"),
+  "taxable_gross", zz_extract_line_from_current_stub_section("summary", "^Taxable Gross"),
+  "total_taxes_and_deductions", zz_extract_line_from_current_stub_section("summary", "^Total Taxes and Deductions"),
+  "net", zz_extract_line_from_current_stub_section("summary", "^Net")
+) %>%
+  mutate(details = map(details, extract_amounts_from_line)) %>%
+  unnest_wider(details)
+
+read_lines_from_stub_pdf("data/source/stubs/2018-06-13.pdf") %>%
+  extract_summary_details() %>%
+  pivot_longer(cols = pay:other_deductions, names_to = "stub_section", values_to = "details")
+
 stubs <- tibble(filename = fs::dir_ls("data/source/stubs/", glob = "*.pdf")) %>%
   filter(! str_detect(filename, "mgp|phx|damages")) %>%
   mutate(contents = map(filename, read_lines_from_stub_pdf)) %>%
   mutate(summary = map(contents, extract_summary_details))
+
+stubs %>%
+  select(-contents) %>%
+  unnest_auto(summary) %>%
+  pivot_longer(cols = pay:other_deductions, names_to = "stub_section", values_to = "details")
