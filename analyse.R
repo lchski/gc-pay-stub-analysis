@@ -23,7 +23,7 @@ deductions_by_stub <- stubs %>%
   select(filename, date, gross = taxable_gross, tax:disability_insurance) %>%
   pivot_longer(cols = tax:disability_insurance, names_to = "deduction", values_to = "deduction_value") %>%
   mutate(deduction_value = deduction_value * -1) %>%
-  mutate(deduction_pct = (deduction_value / gross) * 100)
+  mutate(deduction_pct = round((deduction_value / gross) * 100, 1))
 
 deductions_by_stub %>%
   ggplot(aes(x = date, y = deduction_pct, color = deduction)) +
